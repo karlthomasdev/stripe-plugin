@@ -1,0 +1,47 @@
+<script type="text/javascript" src="https://js.stripe.com/v2/"></script>
+<script type="text/javascript">
+  // This identifies your website in the createToken call below
+  Stripe.setPublishableKey('<%= @options[:public_key] %>');
+  // Create token
+  jQuery(function($) {
+    $('form#<%= @options[:form_id] %>').submit(function(event) {
+        var $form = $(this);
+        event.preventDefault();
+        $form.find('input[type=submit]').prop('disabled', true);
+        var type = $('form#<%= @options[:form_id] %>')[0].payment_type
+        if ( !type || type.value == 'stripe'){
+          Stripe.card.createToken($form, stripeResponseHandler);
+        } else {
+          $.post($form.attr('action'), $form.serialize(), serverResponseHandler);
+        }
+        return false;
+    });
+  });
+  var stripeResponseHandler = function(status, response) {
+    var $form = $('form#<%= @options[:form_id] %>');
+    if (response.error) {
+      // Show the errors on the form
+      $('#<%= @options[:errors_id] %>').text(response.error.message);
+      $form.find('input[type=submit]').prop('disabled', false);
+    } else {
+      // token contains id, last4, and card type
+      var token = response.id;
+      // Insert the token into the form so it gets submitted to the server
+      $form.append($('<input type="hidden" name="stripeToken" />').val(token));
+      // and submit via ajax
+      $.post($form.attr('action'), $form.serialize(), serverResponseHandler);
+    }
+  };
+  var serverResponseHandler = function(data, textStatus, jqXHR) {
+    var $form = $('form#<%= @options[:form_id] %>');
+    $form.find('input[type=submit]').prop('disabled', false);
+    if (data.model && data.model.error) {
+      $('#<%= @options[:errors_id] %>').text(data.model.error.message);
+    } else if (data.charge.error) {
+      $('#<%= @options[:errors_id] %>').text(data.model.error.message);
+    } else {
+      alert('<%= @options[:success_message] %>');
+      $form.trigger("reset");
+    }
+  }
+</script>
